@@ -1,11 +1,12 @@
 {
   "domain": "doubao_tts",
   "name": "Doubao TTS",
-  "version": "1.0.0",
-  "documentation": "https://github.com/hasscc/hass-edge-tts",
-  "dependencies": [],
-  "requirements": ["websockets>=12.0"],
-  "codeowners": ["@hasscc"],
+  "codeowners": ["@ifcc"],
   "config_flow": true,
-  "iot_class": "cloud_push"
+  "dependencies": [],
+  "documentation": "",
+  "iot_class": "cloud_push",
+  "issue_tracker": "",
+  "requirements": ["websockets>=10.0"],
+  "version": "1.0.0"
 }

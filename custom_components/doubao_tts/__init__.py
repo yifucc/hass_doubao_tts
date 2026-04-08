@@ -8,7 +8,6 @@ async def async_setup(hass: HomeAssistant, config: dict):
     return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    # 修复：新版 HA 用 async_forward_entry_setups (复数)
     await hass.config_entries.async_forward_entry_setups(entry, ["tts"])
     return True
 
