@@ -1,4 +1,4 @@
-DOMAIN = "doubao_tts_v3"
+DOMAIN = "doubao_tts"
 
 WS_URL = "wss://openspeech.bytedance.com/api/v3/tts/unidirectional/stream"
 
