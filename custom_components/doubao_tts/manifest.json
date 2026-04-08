@@ -1,12 +1,10 @@
 {
   "domain": "doubao_tts",
   "name": "Doubao TTS",
-  "codeowners": ["@ifcc"],
+  "version": "1.0.0",
   "config_flow": true,
   "dependencies": [],
-  "documentation": "",
-  "iot_class": "cloud_push",
-  "issue_tracker": "",
-  "requirements": ["websockets>=10.0"],
-  "version": "1.0.0"
+  "requirements": ["websockets>=12.0"],
+  "codeowners": ["@hasscc"],
+  "iot_class": "cloud_push"
 }
