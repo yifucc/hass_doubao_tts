@@ -3,18 +3,15 @@ from __future__ import annotations
 
 import json
 import uuid
-import struct
 import logging
-import asyncio
-import ssl
 import websockets
 from typing import Any
-
 from homeassistant.components.tts import TextToSpeechEntity, TtsAudioType
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import DeviceEntryType
+from .protocols import full_client_request, receive_message, MsgType, EventType
 
 from .const import DOMAIN
 
@@ -22,12 +19,13 @@ _LOGGER = logging.getLogger(__name__)
 WS_URL = "wss://openspeech.bytedance.com/api/v3/tts/unidirectional/stream"
 
 async def async_setup_entry(
-    hass: HomeAssistant,
-    config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+        hass: HomeAssistant,
+        config_entry: ConfigEntry,
+        async_add_entities: AddEntitiesCallback,
 ) -> None:
     entity = DoubaoTTSEntity(hass, config_entry)
     async_add_entities([entity])
+
 
 class DoubaoTTSEntity(TextToSpeechEntity):
     _attr_name = "Doubao TTS"
@@ -61,68 +59,69 @@ class DoubaoTTSEntity(TextToSpeechEntity):
         return ["speaker", "speed", "volume"]
 
     async def async_get_tts_audio(
-        self, message: str, language: str, options: dict[str, Any]
+            self, message: str, language: str, options: dict[str, Any]
     ) -> TtsAudioType:
-        # 修复 SSL 阻塞调用：在 executor 中创建 SSL 上下文
-        ssl_context = await self.hass.async_add_executor_job(
-            lambda: ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-        )
 
-        speaker = options.get("speaker", "zh_female_shuangkuaisisi_moon_bigtts")
-        speed = int(options.get("speed", 0))
-        volume = int(options.get("volume", 0))
-
-        payload = {
-            "user": {"uid": "homeassistant"},
-            "namespace": "BidirectionalTTS",
-            "req_params": {
-                "text": message,
-                "speaker": speaker,
-                "model": "seed-tts-2.0-standard",
-                "audio_params": {
-                    "format": "mp3",
-                    "sample_rate": 24000,
-                    "speech_rate": speed,
-                    "loudness_rate": volume
-                },
-                "additions": {"disable_markdown_filter": True}
-            }
-        }
+        speaker = options.get("speaker", "zh_female_qingxinnvsheng_uranus_bigtts")
 
         headers = {
-            "X-Api-App-Id": self._app_id,
+            "X-Api-App-Key": self._app_id,
             "X-Api-Access-Key": self._access_key,
             "X-Api-Resource-Id": self._resource_id,
-            "X-Api-Request-Id": str(uuid.uuid4()),
+            "X-Api-Connect-Id": str(uuid.uuid4()),
         }
 
-        audio = b""
+        _LOGGER.info(f"Connecting to {WS_URL} with headers: {headers}")
+        websocket = await websockets.connect(
+            WS_URL, additional_headers=headers, max_size=10 * 1024 * 1024
+        )
+        _LOGGER.info(
+            f"Connected to WebSocket server, Logid: {websocket.response.headers['x-tt-logid']}",
+        )
+
         try:
-            async with websockets.connect(
-                WS_URL,
-                extra_headers=headers,
-                ssl=ssl_context,
-                close_timeout=5
-            ) as ws:
-                header = bytes([0x11, 0x10, 0x10, 0x00])
-                payload_bytes = json.dumps(payload).encode("utf-8")
-                frame = header + struct.pack(">I", len(payload_bytes)) + payload_bytes
-                await ws.send(frame)
+            # Prepare request payload
+            request = {
+                "user": {
+                    "uid": str(uuid.uuid4()),
+                },
+                "req_params": {
+                    "speaker": speaker,
+                    "audio_params": {
+                        "format": "mp3",
+                        "sample_rate": 24000,
+                        "enable_timestamp": True,
+                    },
+                    "text": message,
+                    "additions": json.dumps(
+                        {
+                            "disable_markdown_filter": False,
+                        }
+                    ),
+                },
+            }
 
-                while True:
-                    msg = await ws.recv()
-                    if not isinstance(msg, bytes):
-                        continue
-                    payload_len = struct.unpack(">I", msg[4:8])[0]
-                    data = json.loads(msg[8:8+payload_len])
+            # Send request
+            await full_client_request(websocket, json.dumps(request).encode())
 
-                    if data.get("event") == 352:
-                        audio += bytes(data["data"])
-                    if data.get("event") == 152:
+            # Receive audio data
+            audio = bytearray()
+            while True:
+                msg = await receive_message(websocket)
+
+                if msg.type == MsgType.FullServerResponse:
+                    if msg.event == EventType.SessionFinished:
                         break
+                elif msg.type == MsgType.AudioOnlyServer:
+                    audio.extend(msg.payload)
+                else:
+                    raise RuntimeError(f"TTS conversion failed: {msg}")
 
-        except Exception as e:
-            _LOGGER.error("Doubao TTS error: %s", e)
-            return None, None
+            # Check if we received any audio data
+            if not audio:
+                raise RuntimeError("No audio data received")
 
-        return ("mp3", audio)
+        finally:
+            await websocket.close()
+
+        return "mp3", audio

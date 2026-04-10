@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "config_flow": true,
   "dependencies": [],
-  "requirements": ["websockets>=12.0"],
+  "requirements": ["websockets>=14.0"],
   "codeowners": ["@hasscc"],
   "iot_class": "cloud_push"
 }
