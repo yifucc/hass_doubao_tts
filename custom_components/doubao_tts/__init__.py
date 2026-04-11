@@ -2,8 +2,6 @@
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
-DOMAIN = "doubao_tts"
-
 async def async_setup(hass: HomeAssistant, config: dict):
     return True
 

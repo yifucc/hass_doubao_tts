@@ -1,10 +1,9 @@
 """Doubao TTS."""
-from __future__ import annotations
-
 import json
 import uuid
 import logging
 import websockets
+import ssl
 from typing import Any
 from homeassistant.components.tts import TextToSpeechEntity, TtsAudioType
 from homeassistant.core import HomeAssistant
@@ -12,11 +11,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import DeviceEntryType
 from .protocols import full_client_request, receive_message, MsgType, EventType
-
-from .const import DOMAIN
+from .const import DOMAIN, WS_URL, DEFAULT_SPEAKER, DEFAULT_SAMPLE_RATE, DEFAULT_SPEED, DEFAULT_VOLUME
 
 _LOGGER = logging.getLogger(__name__)
-WS_URL = "wss://openspeech.bytedance.com/api/v3/tts/unidirectional/stream"
 
 async def async_setup_entry(
         hass: HomeAssistant,
@@ -38,7 +35,7 @@ class DoubaoTTSEntity(TextToSpeechEntity):
             "identifiers": {(DOMAIN, config_entry.entry_id)},
             "name": "Doubao TTS",
             "manufacturer": "Doubao",
-            "model": "TTS",
+            "model": "Cloud TTS",
             "entry_type": DeviceEntryType.SERVICE,
         }
 
@@ -56,59 +53,63 @@ class DoubaoTTSEntity(TextToSpeechEntity):
 
     @property
     def supported_options(self) -> list[str]:
-        return ["speaker", "speed", "volume"]
+        return ["speaker", "speed", "volume", "resource_id", "sample_rate", "emotion", "context_texts"]
 
     async def async_get_tts_audio(
             self, message: str, language: str, options: dict[str, Any]
     ) -> TtsAudioType:
 
-        speaker = options.get("speaker", "zh_female_qingxinnvsheng_uranus_bigtts")
+        speaker = options.get("speaker", DEFAULT_SPEAKER)
+        resource_id = options.get("resource_id", self._resource_id)
+        sample_rate = options.get("sample_rate", DEFAULT_SAMPLE_RATE)
+        emotion = options.get("emotion", "")
+        context_texts = options.get("context_texts", "")
+        speed = options.get("speed", DEFAULT_SPEED)
+        volume = options.get("volume", DEFAULT_VOLUME)
 
         headers = {
             "X-Api-App-Key": self._app_id,
             "X-Api-Access-Key": self._access_key,
-            "X-Api-Resource-Id": self._resource_id,
+            "X-Api-Resource-Id": resource_id,
             "X-Api-Connect-Id": str(uuid.uuid4()),
         }
-
         _LOGGER.info(f"Connecting to {WS_URL} with headers: {headers}")
+        ssl_context = await self.hass.async_add_executor_job(
+            lambda: ssl.create_default_context()
+        )
         websocket = await websockets.connect(
-            WS_URL, additional_headers=headers, max_size=10 * 1024 * 1024
+            WS_URL,
+            additional_headers=headers,
+            max_size=10 * 1024 * 1024,
+            ssl=ssl_context,
         )
-        _LOGGER.info(
-            f"Connected to WebSocket server, Logid: {websocket.response.headers['x-tt-logid']}",
-        )
-
         try:
-            # Prepare request payload
             request = {
-                "user": {
-                    "uid": str(uuid.uuid4()),
-                },
+                "user": {"uid": str(uuid.uuid4())},
                 "req_params": {
                     "speaker": speaker,
                     "audio_params": {
                         "format": "mp3",
-                        "sample_rate": 24000,
+                        "sample_rate": int(sample_rate),
+                        "speech_rate": int(speed),
+                        "loudness_rate": int(volume),
                         "enable_timestamp": True,
+                        **({"emotion": emotion.strip()} if emotion and emotion.strip() else {})
                     },
                     "text": message,
-                    "additions": json.dumps(
-                        {
+                    "additions": json.dumps({
                             "disable_markdown_filter": False,
+                            **({"context_texts": context_texts.strip()} if context_texts and context_texts.strip() else {})
                         }
                     ),
                 },
             }
 
-            # Send request
-            await full_client_request(websocket, json.dumps(request).encode())
-
-            # Receive audio data
+            payload = json.dumps(request).encode()
+            await full_client_request(websocket, payload)
             audio = bytearray()
             while True:
                 msg = await receive_message(websocket)
-
                 if msg.type == MsgType.FullServerResponse:
                     if msg.event == EventType.SessionFinished:
                         break
@@ -116,12 +117,9 @@ class DoubaoTTSEntity(TextToSpeechEntity):
                     audio.extend(msg.payload)
                 else:
                     raise RuntimeError(f"TTS conversion failed: {msg}")
-
-            # Check if we received any audio data
             if not audio:
                 raise RuntimeError("No audio data received")
-
         finally:
             await websocket.close()
 
-        return "mp3", audio
+        return "mp3", bytes(audio)

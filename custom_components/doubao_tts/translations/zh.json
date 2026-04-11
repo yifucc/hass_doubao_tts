@@ -1,0 +1,14 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "豆包TTS",
+        "data": {
+          "app_id": "App ID",
+          "access_key": "Access Key",
+          "resource_id": "Resource ID"
+        }
+      }
+    }
+  }
+}

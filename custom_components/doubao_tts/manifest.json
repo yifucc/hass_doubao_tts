@@ -1,10 +1,12 @@
 {
   "domain": "doubao_tts",
   "name": "Doubao TTS",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "config_flow": true,
+  "documentation": "https://github.com/yifucc/hass-doubao-tts",
   "dependencies": [],
   "requirements": ["websockets>=14.0"],
-  "codeowners": ["@hasscc"],
-  "iot_class": "cloud_push"
+  "codeowners": ["@yifucc"],
+  "iot_class": "cloud_push",
+  "integration_type": "service"
 }
