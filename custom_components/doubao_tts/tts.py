@@ -1,4 +1,5 @@
-"""Doubao TTS."""
+from __future__ import annotations
+
 import json
 import uuid
 import logging
@@ -6,12 +7,14 @@ import websockets
 import ssl
 from typing import Any
 from homeassistant.components.tts import TextToSpeechEntity, TtsAudioType
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import DeviceEntryType
+from homeassistant.components.tts import ATTR_VOICE, Voice
 from .protocols import full_client_request, receive_message, MsgType, EventType
-from .const import DOMAIN, WS_URL, DEFAULT_SPEAKER, DEFAULT_SAMPLE_RATE, DEFAULT_SPEED, DEFAULT_VOLUME
+from .const import DOMAIN, WS_URL, DEFAULT_VOICE, DEFAULT_SAMPLE_RATE, DEFAULT_SPEED, DEFAULT_VOLUME, DEFAULT_LANGUAGE
+from .voice_const import SUPPORTED_VOICES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,22 +48,30 @@ class DoubaoTTSEntity(TextToSpeechEntity):
 
     @property
     def default_language(self) -> str:
-        return "zh"
+        return DEFAULT_LANGUAGE
 
     @property
     def supported_languages(self) -> list[str]:
-        return ["zh"]
+        return list({lang for voice in SUPPORTED_VOICES.values() for lang in voice["languages"]})
 
     @property
     def supported_options(self) -> list[str]:
-        return ["speaker", "speed", "volume", "resource_id", "sample_rate", "emotion", "context_texts"]
+        return [ATTR_VOICE, "speaker", "speed", "volume", "resource_id", "sample_rate", "emotion", "context_texts"]
+    
+    @callback
+    def async_get_supported_voices(self, language: str) -> list[Voice]:
+        return list({Voice(voice_id, voice_info["name"]) for voice_id, voice_info in SUPPORTED_VOICES.items()})
 
     async def async_get_tts_audio(
             self, message: str, language: str, options: dict[str, Any]
     ) -> TtsAudioType:
 
-        speaker = options.get("speaker", DEFAULT_SPEAKER)
-        resource_id = options.get("resource_id", self._resource_id)
+        voice = options.get(ATTR_VOICE) or options.get("speaker", DEFAULT_VOICE)
+        resource_id = options.get("resource_id")
+        if not resource_id:
+            voice_conf = SUPPORTED_VOICES.get(voice)
+            if voice_conf:
+                resource_id = voice_conf.get("resource_id")
         sample_rate = options.get("sample_rate", DEFAULT_SAMPLE_RATE)
         emotion = options.get("emotion", "")
         context_texts = options.get("context_texts", "")
@@ -87,7 +98,7 @@ class DoubaoTTSEntity(TextToSpeechEntity):
             request = {
                 "user": {"uid": str(uuid.uuid4())},
                 "req_params": {
-                    "speaker": speaker,
+                    "speaker": voice,
                     "audio_params": {
                         "format": "mp3",
                         "sample_rate": int(sample_rate),
