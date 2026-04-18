@@ -6,14 +6,42 @@ import logging
 import websockets
 import ssl
 from typing import Any
-from homeassistant.components.tts import TextToSpeechEntity, TtsAudioType
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.components.tts import (
+    TextToSpeechEntity, 
+    TtsAudioType,
+    Voice,
+)
+from homeassistant.core import (
+    HomeAssistant, 
+    callback
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import DeviceEntryType
-from homeassistant.components.tts import ATTR_VOICE, Voice
-from .protocols import full_client_request, receive_message, MsgType, EventType
-from .const import DOMAIN, WS_URL, DEFAULT_VOICE, DEFAULT_SAMPLE_RATE, DEFAULT_SPEED, DEFAULT_VOLUME, DEFAULT_LANGUAGE
+from .protocols import (
+    full_client_request, 
+    receive_message, 
+    MsgType, 
+    EventType
+)
+from .const import (
+    DOMAIN, 
+    WS_URL, 
+    DEFAULT_VOICE, 
+    DEFAULT_SAMPLE_RATE, 
+    DEFAULT_SPEED, 
+    DEFAULT_VOLUME, 
+    DEFAULT_LANGUAGE,
+    CONF_APP_ID,
+    CONF_ACCESS_KEY,
+    CONF_VOICE,
+    CONF_SPEED,
+    CONF_VOLUME,
+    CONF_RESOURCE_ID,
+    CONF_SAMPLE_RATE,
+    CONF_EMOTION,
+    CONF_CONTEXT_TEXTS,
+)
 from .voice_const import SUPPORTED_VOICES
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,9 +70,8 @@ class DoubaoTTSEntity(TextToSpeechEntity):
             "entry_type": DeviceEntryType.SERVICE,
         }
 
-        self._app_id = config_entry.data["app_id"]
-        self._access_key = config_entry.data["access_key"]
-        self._resource_id = config_entry.data["resource_id"]
+        self._app_id = config_entry.data[CONF_APP_ID]
+        self._access_key = config_entry.data[CONF_ACCESS_KEY]
 
     @property
     def default_language(self) -> str:
@@ -56,7 +83,7 @@ class DoubaoTTSEntity(TextToSpeechEntity):
 
     @property
     def supported_options(self) -> list[str]:
-        return [ATTR_VOICE, "speaker", "speed", "volume", "resource_id", "sample_rate", "emotion", "context_texts"]
+        return [CONF_VOICE, "speaker", CONF_SPEED, CONF_VOLUME, CONF_RESOURCE_ID, CONF_SAMPLE_RATE, CONF_EMOTION, CONF_CONTEXT_TEXTS]
     
     @callback
     def async_get_supported_voices(self, language: str) -> list[Voice]:
@@ -66,17 +93,19 @@ class DoubaoTTSEntity(TextToSpeechEntity):
             self, message: str, language: str, options: dict[str, Any]
     ) -> TtsAudioType:
 
-        voice = options.get(ATTR_VOICE) or options.get("speaker", DEFAULT_VOICE)
-        resource_id = options.get("resource_id")
+        _options = self._config_entry.options
+
+        voice = options.get(CONF_VOICE) or options.get("speaker", _options.get(CONF_VOICE, DEFAULT_VOICE))
+        resource_id = options.get(CONF_RESOURCE_ID)
         if not resource_id:
             voice_conf = SUPPORTED_VOICES.get(voice)
             if voice_conf:
-                resource_id = voice_conf.get("resource_id")
-        sample_rate = options.get("sample_rate", DEFAULT_SAMPLE_RATE)
-        emotion = options.get("emotion", "")
-        context_texts = options.get("context_texts", "")
-        speed = options.get("speed", DEFAULT_SPEED)
-        volume = options.get("volume", DEFAULT_VOLUME)
+                resource_id = voice_conf.get(CONF_RESOURCE_ID)
+        speed = options.get(CONF_SPEED, _options.get(CONF_SPEED, DEFAULT_SPEED))
+        volume = options.get(CONF_VOLUME, _options.get(CONF_VOLUME, DEFAULT_VOLUME))
+        sample_rate = options.get(CONF_SAMPLE_RATE, DEFAULT_SAMPLE_RATE)
+        emotion = options.get(CONF_EMOTION, "")
+        context_texts = options.get(CONF_CONTEXT_TEXTS, "")
 
         headers = {
             "X-Api-App-Key": self._app_id,

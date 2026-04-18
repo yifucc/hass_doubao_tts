@@ -1,0 +1,36 @@
+{
+  "title": "豆包TTS",
+  "config": {
+    "step": {
+      "user": {
+        "title": "连接豆包TTS",
+        "description": "填写豆包开放平台的API密钥完成配置",
+        "data": {
+          "api_key": "API Key",
+          "secret_key": "Secret Key"
+        },
+        "descriptions": {
+          "api_key": "从豆包开放平台获取的API密钥",
+          "secret_key": "与API Key配对的密钥，请勿泄露"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "豆包TTS 参数配置",
+        "data": {
+          "voice": "音色",
+          "speed": "语速",
+          "volume": "音量"
+        },
+        "descriptions": {
+          "voice": "选择语音合成使用的音色",
+          "speed": "范围：[-50,100]，100代表2.0倍语速，-50代表0.5倍语速，默认是0",
+          "volume": "范围：[-50,100]，100代表2.0倍音量，-50代表0.5倍音量，默认是0"
+        }
+      }
+    }
+  }
+}

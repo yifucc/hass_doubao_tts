@@ -1,12 +1,25 @@
 {
+  "title": "Doubao TTS",
   "config": {
     "step": {
       "user": {
-        "title": "Doubao TTS",
+        "title": "Connect Doubao TTS",
+        "description": "Enter API keys from Doubao Open Platform",
         "data": {
-          "app_id": "App ID",
-          "access_key": "Access Key",
-          "resource_id": "Resource ID"
+          "api_key": "API Key",
+          "secret_key": "Secret Key"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Doubao TTS Settings",
+        "data": {
+          "voice": "Default Voice",
+          "speed": "Speed",
+          "volume": "Volume"
         }
       }
     }

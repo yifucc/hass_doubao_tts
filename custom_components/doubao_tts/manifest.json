@@ -1,7 +1,7 @@
 {
   "domain": "doubao_tts",
   "name": "Doubao TTS",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "config_flow": true,
   "documentation": "https://github.com/yifucc/hass-doubao-tts",
   "dependencies": [],
