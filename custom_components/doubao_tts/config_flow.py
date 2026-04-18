@@ -38,8 +38,8 @@ class DoubaoTTSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
-                vol.Required("app_id"): str,
-                vol.Required("access_key"): str,
+                vol.Required(CONF_APP_ID): str,
+                vol.Required(CONF_ACCESS_KEY): str,
             })
         )
 

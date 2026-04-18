@@ -6,8 +6,8 @@
         "title": "Connect Doubao TTS",
         "description": "Enter API keys from Doubao Open Platform",
         "data": {
-          "api_key": "API Key",
-          "secret_key": "Secret Key"
+          "app_id": "App ID",
+          "access_key": "Access Key"
         }
       }
     }
@@ -17,7 +17,7 @@
       "init": {
         "title": "Doubao TTS Settings",
         "data": {
-          "voice": "Default Voice",
+          "voice": "Voice",
           "speed": "Speed",
           "volume": "Volume"
         }
